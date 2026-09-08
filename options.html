@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <title>Image Shortcut Paster - Options</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f7f8;
+      --panel: #ffffff;
+      --border: #e2e2e6;
+      --text: #1a1a1a;
+      --muted: #666;
+      --accent: #2b6cb0;
+      --danger: #c53030;
+      --chip: #edf2f7;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --panel: #242426;
+        --border: #333;
+        --text: #eee;
+        --muted: #999;
+        --accent: #4299e1;
+        --danger: #fc8181;
+        --chip: #2d3748;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px;
+      font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    h1 { font-size: 20px; margin: 0 0 16px; }
+    h2 { font-size: 15px; margin: 0 0 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .container { max-width: 760px; margin: 0 auto; }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    label { display: block; font-weight: 600; margin-bottom: 6px; }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--panel);
+      color: var(--text);
+      font: inherit;
+    }
+    .row { display: flex; gap: 12px; margin-bottom: 12px; }
+    .row > * { flex: 1; }
+    .shortcut-input {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .shortcut-display {
+      flex: 1;
+      padding: 8px 10px;
+      border: 1px dashed var(--border);
+      border-radius: 6px;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      color: var(--muted);
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    }
+    .shortcut-display.capturing {
+      border-style: solid;
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .shortcut-display.filled { color: var(--text); }
+    button {
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      border-radius: 6px;
+      cursor: pointer;
+      font: inherit;
+    }
+    button.primary { background: var(--accent); color: white; border-color: var(--accent); }
+    button.danger { color: var(--danger); border-color: var(--danger); }
+    button:hover { opacity: 0.85; }
+    .image-preview {
+      max-width: 200px;
+      max-height: 120px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      object-fit: contain;
+      background: var(--chip);
+    }
+    #dropzone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    #dropzone:hover, #dropzone.drag { border-color: var(--accent); background: var(--chip); }
+    .mapping {
+      display: grid;
+      grid-template-columns: 100px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .mapping:last-child { border-bottom: none; }
+    .mapping .thumb {
+      width: 90px;
+      height: 60px;
+      object-fit: contain;
+      background: var(--chip);
+      border-radius: 4px;
+    }
+    .mapping .meta { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+    .mapping .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      background: var(--chip);
+      border-radius: 4px;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 12px;
+    }
+    .empty { padding: 24px; text-align: center; color: var(--muted); }
+    .status {
+      padding: 8px 12px;
+      border-radius: 6px;
+      background: var(--chip);
+      margin-top: 12px;
+      display: none;
+    }
+    .status.show { display: block; }
+    .status.error { background: rgba(197, 48, 48, 0.15); color: var(--danger); }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Image Shortcut Paster</h1>
+
+    <div class="panel">
+      <h2>Thêm Shortcut</h2>
+
+      <label for="nameInput">Tên</label>
+      <input type="text" id="nameInput" placeholder="VD: Ảnh 1" />
+      <div class="hint">Chỉ để dễ nhớ trong danh sách.</div>
+
+      <div style="height: 12px"></div>
+
+      <label>Tổ hợp phím</label>
+      <div class="shortcut-input">
+        <div id="shortcutDisplay" class="shortcut-display">Bấm &laquo;Capture&raquo; rồi nhấn tổ hợp phím</div>
+        <button id="captureBtn" type="button">Capture</button>
+        <button id="clearShortcutBtn" type="button">Xoá</button>
+      </div>
+      <div class="hint">Cần có ít nhất 1 modifier (Ctrl / Alt / Shift / Cmd) để tránh trùng với gõ chữ thường.</div>
+
+      <div style="height: 16px"></div>
+
+      <label>Ảnh</label>
+      <div id="dropzone">
+        <div>Kéo &amp; thả ảnh vào đây, hoặc <b>click để chọn file</b></div>
+        <div class="hint">PNG, JPG, GIF, WebP. Ảnh lớn sẽ chiếm nhiều storage.</div>
+        <input type="file" id="fileInput" accept="image/*" hidden />
+      </div>
+      <div id="previewWrap" style="margin-top: 12px; display: none">
+        <img id="preview" class="image-preview" alt="" />
+        <div class="hint" id="previewInfo"></div>
+      </div>
+
+      <div style="height: 16px"></div>
+
+      <button id="saveBtn" class="primary" type="button">Lưu</button>
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Danh sách đã lưu</h2>
+      <div id="mappingList"></div>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
