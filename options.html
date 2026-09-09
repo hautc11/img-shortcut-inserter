@@ -55,30 +55,18 @@
       color: var(--text);
       font: inherit;
     }
+    select, textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--panel);
+      color: var(--text);
+      font: inherit;
+    }
+    textarea { resize: vertical; }
     .row { display: flex; gap: 12px; margin-bottom: 12px; }
     .row > * { flex: 1; }
-    .shortcut-input {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .shortcut-display {
-      flex: 1;
-      padding: 8px 10px;
-      border: 1px dashed var(--border);
-      border-radius: 6px;
-      min-height: 36px;
-      display: flex;
-      align-items: center;
-      color: var(--muted);
-      font-family: ui-monospace, "SF Mono", Menlo, monospace;
-    }
-    .shortcut-display.capturing {
-      border-style: solid;
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-    .shortcut-display.filled { color: var(--text); }
     button {
       padding: 8px 14px;
       border: 1px solid var(--border);
@@ -146,6 +134,9 @@
     .status.show { display: block; }
     .status.error { background: rgba(197, 48, 48, 0.15); color: var(--danger); }
     .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .type-options { display: flex; gap: 16px; }
+    .type-option { display: flex; align-items: center; gap: 6px; font-weight: 400; margin: 0; }
+    .type-option input { margin: 0; }
   </style>
 </head>
 <body>
@@ -153,33 +144,44 @@
     <h1>Image Shortcut Paster</h1>
 
     <div class="panel">
-      <h2>Thêm Shortcut</h2>
+      <h2>Thêm bộ phím</h2>
 
-      <label for="nameInput">Tên</label>
-      <input type="text" id="nameInput" placeholder="VD: Ảnh 1" />
+      <label for="nameInput">Tên bộ phím</label>
+      <input type="text" id="nameInput" placeholder="VD: Bộ phím công việc" />
       <div class="hint">Chỉ để dễ nhớ trong danh sách.</div>
 
       <div style="height: 12px"></div>
 
-      <label>Tổ hợp phím</label>
-      <div class="shortcut-input">
-        <div id="shortcutDisplay" class="shortcut-display">Bấm &laquo;Capture&raquo; rồi nhấn tổ hợp phím</div>
-        <button id="captureBtn" type="button">Capture</button>
-        <button id="clearShortcutBtn" type="button">Xoá</button>
+      <label>Loại nội dung</label>
+      <div class="type-options">
+        <label class="type-option"><input type="radio" name="type" value="image" checked /> Ảnh</label>
+        <label class="type-option"><input type="radio" name="type" value="text" /> Text</label>
       </div>
-      <div class="hint">Cần có ít nhất 1 modifier (Ctrl / Alt / Shift / Cmd) để tránh trùng với gõ chữ thường.</div>
+
+      <div style="height: 12px"></div>
+
+      <label for="triggerInput">Mã gõ</label>
+      <input type="text" id="triggerInput" placeholder="VD: A1 hoặc /email" autocomplete="off" />
+      <div class="hint">Gõ mã này trong ô nhập liệu rồi nhấn Tab để chèn.</div>
+
+      <div id="textWrap" style="display: none; margin-top: 12px">
+        <label for="textInput">Nội dung văn bản</label>
+        <textarea id="textInput" rows="4" placeholder="VD: this is text for A2"></textarea>
+      </div>
 
       <div style="height: 16px"></div>
 
-      <label>Ảnh</label>
-      <div id="dropzone">
-        <div>Kéo &amp; thả ảnh vào đây, hoặc <b>click để chọn file</b></div>
-        <div class="hint">PNG, JPG, GIF, WebP. Ảnh lớn sẽ chiếm nhiều storage.</div>
-        <input type="file" id="fileInput" accept="image/*" hidden />
-      </div>
-      <div id="previewWrap" style="margin-top: 12px; display: none">
-        <img id="preview" class="image-preview" alt="" />
-        <div class="hint" id="previewInfo"></div>
+      <div id="imageWrap">
+        <label>Ảnh</label>
+        <div id="dropzone">
+          <div>Kéo &amp; thả ảnh vào đây, hoặc <b>click để chọn file</b></div>
+          <div class="hint">PNG, JPG, GIF, WebP. Ảnh lớn sẽ chiếm nhiều storage.</div>
+          <input type="file" id="fileInput" accept="image/*" hidden />
+        </div>
+        <div id="previewWrap" style="margin-top: 12px; display: none">
+          <img id="preview" class="image-preview" alt="" />
+          <div class="hint" id="previewInfo"></div>
+        </div>
       </div>
 
       <div style="height: 16px"></div>

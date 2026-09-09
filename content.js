@@ -3,6 +3,7 @@
 (() => {
   const STORAGE_KEY = "mappings";
   let mappings = [];
+  let typedBuffer = "";
 
   function loadMappings() {
     try {
@@ -25,16 +26,6 @@
       }
     });
   } catch (_) {}
-
-  function shortcutMatches(sc, e) {
-    if (!sc) return false;
-    if (!!sc.ctrl !== e.ctrlKey) return false;
-    if (!!sc.shift !== e.shiftKey) return false;
-    if (!!sc.alt !== e.altKey) return false;
-    if (!!sc.meta !== e.metaKey) return false;
-    if (sc.code) return sc.code === e.code;
-    return (sc.key || "").toLowerCase() === (e.key || "").toLowerCase();
-  }
 
   function dataUrlToBlob(dataUrl) {
     const [meta, b64] = dataUrl.split(",");
@@ -110,6 +101,60 @@
       p = p.parentElement;
     }
     return false;
+  }
+
+  function isEditable(el) {
+    return isPlainInput(el) || isRichEditable(el);
+  }
+
+  function deletePreviousCharacters(target, count) {
+    if (isPlainInput(target)) {
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      if (start === null || end === null || start !== end || start < count) return false;
+      target.setRangeText("", start - count, end, "end");
+      return true;
+    }
+    const doc = target.ownerDocument || document;
+    const win = doc.defaultView || window;
+    const sel = win.getSelection();
+    if (!sel || sel.rangeCount === 0 || !sel.isCollapsed || !sel.modify) return false;
+    for (let i = 0; i < count; i++) sel.modify("extend", "backward", "character");
+    if (sel.toString().length !== count) return false;
+    sel.deleteFromDocument();
+    return true;
+  }
+
+  function insertText(target, text) {
+    if (isPlainInput(target)) {
+      const start = target.selectionStart;
+      const end = target.selectionEnd;
+      if (start === null || end === null) return false;
+      target.setRangeText(text, start, end, "end");
+      target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+      return true;
+    }
+    const doc = target.ownerDocument || document;
+    const win = doc.defaultView || window;
+    const sel = win.getSelection();
+    if (!sel || sel.rangeCount === 0) return false;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+    const node = doc.createTextNode(text);
+    range.insertNode(node);
+    range.setStartAfter(node);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    target.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+    return true;
+  }
+
+  function findTypedMapping(target) {
+    if (!typedBuffer) return null;
+    const match = mappings.find((m) => m.trigger && m.trigger.toLowerCase() === typedBuffer.toLowerCase());
+    if (!match || !isEditable(target)) return null;
+    return match;
   }
 
   const CLIPBOARD_FIRST_HOSTS = [
@@ -197,6 +242,13 @@
     const target = getEditableTarget();
     if (!target) return;
 
+    if (mapping.type === "text") {
+      if (!isEditable(target)) return;
+      if (mapping.trigger && !deletePreviousCharacters(target, mapping.trigger.length)) return;
+      insertText(target, mapping.text || "");
+      return;
+    }
+
     if (isPlainInput(target)) {
       notify("Ô này là input/textarea thuần, không nhận được ảnh.", true);
       return;
@@ -215,6 +267,7 @@
       return;
     }
 
+    if (mapping.trigger && !deletePreviousCharacters(target, mapping.trigger.length)) return;
     if (trySyntheticPaste(target, dataUrl, mimeType)) return;
     if (tryInsertHTML(target, dataUrl)) return;
 
@@ -227,16 +280,32 @@
     "keydown",
     (e) => {
       if (!mappings.length) return;
-      const mapping = mappings.find((m) => shortcutMatches(m.shortcut, e));
-      if (!mapping) return;
-
       const target = getEditableTarget();
       if (!target) return;
-      if (!isPlainInput(target) && !isRichEditable(target)) return;
+
+      if (e.ctrlKey || e.altKey || e.metaKey) {
+        typedBuffer = "";
+        return;
+      }
+
+      if (e.key.length === 1) {
+        typedBuffer += e.key;
+        if (typedBuffer.length > 80) typedBuffer = typedBuffer.slice(-80);
+        return;
+      }
+
+      if (e.key !== "Tab") {
+        typedBuffer = "";
+        return;
+      }
+
+      const typedMapping = findTypedMapping(target);
+      typedBuffer = "";
+      if (!typedMapping) return;
 
       e.preventDefault();
       e.stopPropagation();
-      handleTrigger(mapping);
+      handleTrigger(typedMapping);
     },
     true
   );

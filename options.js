@@ -3,16 +3,15 @@
 const STORAGE_KEY = "mappings";
 
 const state = {
-  shortcut: null,
   image: null,
-  capturing: false,
 };
 
 const els = {
   name: document.getElementById("nameInput"),
-  shortcutDisplay: document.getElementById("shortcutDisplay"),
-  captureBtn: document.getElementById("captureBtn"),
-  clearShortcutBtn: document.getElementById("clearShortcutBtn"),
+  trigger: document.getElementById("triggerInput"),
+  text: document.getElementById("textInput"),
+  textWrap: document.getElementById("textWrap"),
+  imageWrap: document.getElementById("imageWrap"),
   dropzone: document.getElementById("dropzone"),
   fileInput: document.getElementById("fileInput"),
   preview: document.getElementById("preview"),
@@ -31,75 +30,14 @@ function showStatus(msg, isError) {
   showStatus._t = setTimeout(() => els.status.classList.remove("show"), 3000);
 }
 
-function shortcutToString(sc) {
-  if (!sc) return "";
-  const parts = [];
-  if (sc.ctrl) parts.push("Ctrl");
-  if (sc.meta) parts.push("Cmd");
-  if (sc.alt) parts.push("Alt");
-  if (sc.shift) parts.push("Shift");
-  parts.push(sc.keyLabel || sc.key);
-  return parts.join(" + ");
+function renderType() {
+  const isText = document.querySelector("input[name='type']:checked").value === "text";
+  els.textWrap.style.display = isText ? "block" : "none";
+  els.imageWrap.style.display = isText ? "none" : "block";
 }
 
-function renderShortcut() {
-  const s = shortcutToString(state.shortcut);
-  if (state.capturing) {
-    els.shortcutDisplay.textContent = "Đang chờ... nhấn tổ hợp phím";
-    els.shortcutDisplay.classList.add("capturing");
-    els.shortcutDisplay.classList.remove("filled");
-  } else if (s) {
-    els.shortcutDisplay.textContent = s;
-    els.shortcutDisplay.classList.add("filled");
-    els.shortcutDisplay.classList.remove("capturing");
-  } else {
-    els.shortcutDisplay.textContent = "Bấm «Capture» rồi nhấn tổ hợp phím";
-    els.shortcutDisplay.classList.remove("filled", "capturing");
-  }
-}
-
-function stopCapture() {
-  state.capturing = false;
-  document.removeEventListener("keydown", onCaptureKey, true);
-  renderShortcut();
-}
-
-function onCaptureKey(e) {
-  if (!state.capturing) return;
-  e.preventDefault();
-  e.stopPropagation();
-  if (e.key === "Escape") {
-    stopCapture();
-    return;
-  }
-  const modOnly = ["Control", "Shift", "Alt", "Meta"].includes(e.key);
-  if (modOnly) return;
-  const hasMod = e.ctrlKey || e.altKey || e.metaKey || e.shiftKey;
-  if (!hasMod) {
-    showStatus("Cần ít nhất 1 modifier (Ctrl/Alt/Shift/Cmd).", true);
-    return;
-  }
-  state.shortcut = {
-    ctrl: e.ctrlKey,
-    shift: e.shiftKey,
-    alt: e.altKey,
-    meta: e.metaKey,
-    key: e.key.length === 1 ? e.key.toLowerCase() : e.key,
-    code: e.code,
-    keyLabel: e.key.length === 1 ? e.key.toUpperCase() : e.key,
-  };
-  stopCapture();
-}
-
-els.captureBtn.addEventListener("click", () => {
-  state.capturing = true;
-  renderShortcut();
-  document.addEventListener("keydown", onCaptureKey, true);
-});
-
-els.clearShortcutBtn.addEventListener("click", () => {
-  state.shortcut = null;
-  renderShortcut();
+document.querySelectorAll("input[name='type']").forEach((radio) => {
+  radio.addEventListener("change", renderType);
 });
 
 function readFileAsDataURL(file) {
@@ -160,36 +98,33 @@ async function saveMappings(list) {
   await chrome.storage.local.set({ [STORAGE_KEY]: list });
 }
 
-function shortcutsEqual(a, b) {
-  return (
-    !!a && !!b &&
-    a.ctrl === b.ctrl &&
-    a.shift === b.shift &&
-    a.alt === b.alt &&
-    a.meta === b.meta &&
-    a.code === b.code
-  );
-}
-
 els.saveBtn.addEventListener("click", async () => {
-  if (!state.shortcut) {
-    showStatus("Chưa chọn tổ hợp phím.", true);
+  const trigger = els.trigger.value.trim();
+  const type = document.querySelector("input[name='type']:checked").value;
+  if (!trigger) {
+    showStatus("Chưa nhập mã gõ.", true);
     return;
   }
-  if (!state.image) {
+  if (type === "text" && !els.text.value) {
+    showStatus("Chưa nhập nội dung văn bản.", true);
+    return;
+  }
+  if (type === "image" && !state.image) {
     showStatus("Chưa chọn ảnh.", true);
     return;
   }
   const list = await loadMappings();
-  if (list.some((m) => shortcutsEqual(m.shortcut, state.shortcut))) {
-    showStatus("Tổ hợp phím này đã được dùng.", true);
+  if (trigger && list.some((m) => (m.trigger || "").toLowerCase() === trigger.toLowerCase())) {
+    showStatus("Mã gõ này đã được dùng.", true);
     return;
   }
   list.push({
     id: crypto.randomUUID(),
-    name: els.name.value.trim() || state.image.fileName,
-    shortcut: state.shortcut,
-    image: state.image,
+    name: els.name.value.trim() || (state.image && state.image.fileName) || trigger,
+    type,
+    trigger,
+    text: type === "text" ? els.text.value : "",
+    image: type === "image" ? state.image : null,
     createdAt: Date.now(),
   });
   try {
@@ -199,12 +134,14 @@ els.saveBtn.addEventListener("click", async () => {
     return;
   }
   els.name.value = "";
-  state.shortcut = null;
+  els.trigger.value = "";
+  els.text.value = "";
+  document.querySelector("input[name='type'][value='image']").checked = true;
   state.image = null;
   els.fileInput.value = "";
   els.preview.src = "";
   els.previewWrap.style.display = "none";
-  renderShortcut();
+  renderType();
   showStatus("Đã lưu.");
   renderList();
 });
@@ -224,7 +161,8 @@ async function renderList() {
     row.className = "mapping";
     const img = document.createElement("img");
     img.className = "thumb";
-    img.src = m.image.dataUrl;
+    if (m.image) img.src = m.image.dataUrl;
+    else img.style.visibility = "hidden";
     const meta = document.createElement("div");
     meta.className = "meta";
     const name = document.createElement("div");
@@ -233,7 +171,7 @@ async function renderList() {
     const kbd = document.createElement("div");
     const span = document.createElement("span");
     span.className = "kbd";
-    span.textContent = shortcutToString(m.shortcut);
+    span.textContent = m.trigger || "Mã cũ";
     kbd.appendChild(span);
     meta.appendChild(name);
     meta.appendChild(kbd);
@@ -253,5 +191,5 @@ async function renderList() {
   }
 }
 
-renderShortcut();
+renderType();
 renderList();
